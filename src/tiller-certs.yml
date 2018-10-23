@@ -18,3 +18,4 @@ variables:
     ca: tiller_ca
     common_name: tiller-admin
     organization: tiller
+    extended_key_usage: [client_auth]
