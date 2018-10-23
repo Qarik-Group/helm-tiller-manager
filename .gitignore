@@ -1,0 +1,3 @@
+*.pem
+ca.srl
+certs.yml

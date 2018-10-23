@@ -1,0 +1,79 @@
+#!/bin/bash
+
+set -eu
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd $DIR/..
+
+export CERTS_YAML=${CERTS_YAML:-certs.yml}
+export HELM_HOME=${HELM_HOME:-$(helm home)}
+
+[[ "$(which bosh)X" == "X" ]] && {
+  echo "ERROR: please install 'bosh' CLI to generate certificates"
+  exit 1
+}
+
+usage() {
+    echo "Helm/Tiller Deployment Manager CLI"
+    echo "  up   -- deploys the Tiller to current Kubernetes context"
+    echo "  down -- deletes to current Kubernetes context"
+}
+
+up() {
+  set -x
+  [[ -d ${HELM_HOME} ]] || {
+    echo "Installing helm into current Kuberenetes context..."
+    kubectl apply -f ./helm.yaml
+
+    helm init --service-account helm \
+      --tiller-tls \
+      --tiller-tls-verify \
+      --tls-ca-cert     <(bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/ca) \
+      --tiller-tls-cert <(bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/certificate) \
+      --tiller-tls-key  <(bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/private_key)
+  }
+
+  echo "Storing certificates into ${HELM_HOME}..."
+  bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/ca          > "${HELM_HOME}/ca.pem"
+  bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/certificate > "${HELM_HOME}/cert.pem"
+  bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/private_key > "${HELM_HOME}/key.pem"
+
+  echo "Testing connection"
+  # helm ls --tls
+}
+
+down() {
+  set +e
+  kubectl delete deployment tiller-deploy --namespace=kube-system
+  kubectl delete service tiller-deploy --namespace=kube-system
+  kubectl delete secret tiller-secret -n kube-system
+  kubectl delete -f ./helm.yaml
+  rm -rf ~/.helm/
+}
+
+int() {
+  bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} "$@"
+}
+
+case "${1:-usage}" in
+    up)
+        shift
+        up
+        ;;
+
+    down)
+        shift
+        down
+        ;;
+
+    int)
+        shift
+        int "$@"
+        ;;
+
+    *)
+        usage
+        exit 1
+        ;;
+esac
+

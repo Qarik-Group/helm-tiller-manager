@@ -1,0 +1,20 @@
+tiller:
+  tls:
+    ca: ((tiller_ca.certificate))
+    certificate: ((tiller_tls.certificate))
+    private_key: ((tiller_tls.private_key))
+
+variables:
+- name: tiller_ca
+  type: certificate
+  options:
+    is_ca: true
+    common_name: tiller-server
+    organization: tiller
+
+- name: tiller_tls
+  type: certificate
+  options:
+    ca: tiller_ca
+    common_name: tiller-admin
+    organization: tiller
