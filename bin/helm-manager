@@ -2,6 +2,9 @@
 
 set -eu
 
+# Inputs to this script come from:
+# * http://jayunit100.blogspot.com/2017/07/helm-on.html
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR/..
 
@@ -28,15 +31,15 @@ up() {
     helm init --service-account helm \
       --tiller-tls \
       --tiller-tls-verify \
-      --tls-ca-cert     <(bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/ca) \
-      --tiller-tls-cert <(bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/certificate) \
-      --tiller-tls-key  <(bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/private_key)
+      --tls-ca-cert     <(int --path /tiller/tls/ca) \
+      --tiller-tls-cert <(int --path /tiller/tls/certificate) \
+      --tiller-tls-key  <(int --path /tiller/tls/private_key)
   }
 
   echo "Storing certificates into ${HELM_HOME}..."
-  bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/ca          > "${HELM_HOME}/ca.pem"
-  bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/certificate > "${HELM_HOME}/cert.pem"
-  bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} --path /tiller/tls/private_key > "${HELM_HOME}/key.pem"
+  int --path /tiller/tls/ca          > "${HELM_HOME}/ca.pem"
+  int --path /tiller/tls/certificate > "${HELM_HOME}/cert.pem"
+  int --path /tiller/tls/private_key > "${HELM_HOME}/key.pem"
 
   echo "Testing connection"
   # helm ls --tls
@@ -52,7 +55,7 @@ down() {
 }
 
 int() {
-  bosh int ./tiller-certs.yml --vars-store ${CERTS_YAML} "$@"
+  bosh int ./src/tiller-certs.yml --vars-store ${CERTS_YAML} "$@"
 }
 
 case "${1:-usage}" in
