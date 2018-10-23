@@ -4,6 +4,7 @@ set -eu
 
 # Inputs to this script come from:
 # * http://jayunit100.blogspot.com/2017/07/helm-on.html
+# * https://github.com/helm/helm/blob/master/docs/tiller_ssl.md
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR/..
@@ -26,14 +27,15 @@ up() {
   set -x
   [[ -d ${HELM_HOME} ]] || {
     echo "Installing helm into current Kuberenetes context..."
-    kubectl apply -f ./helm.yaml
+    kubectl apply -f ./src/helm.yaml
 
     helm init --service-account helm \
       --tiller-tls \
       --tiller-tls-verify \
       --tls-ca-cert     <(int --path /tiller/tls/ca) \
       --tiller-tls-cert <(int --path /tiller/tls/certificate) \
-      --tiller-tls-key  <(int --path /tiller/tls/private_key)
+      --tiller-tls-key  <(int --path /tiller/tls/private_key) \
+      --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}'
   }
 
   echo "Storing certificates into ${HELM_HOME}..."
@@ -50,7 +52,7 @@ down() {
   kubectl delete deployment tiller-deploy --namespace=kube-system
   kubectl delete service tiller-deploy --namespace=kube-system
   kubectl delete secret tiller-secret -n kube-system
-  kubectl delete -f ./helm.yaml
+  kubectl delete -f ./src/helm.yaml
   rm -rf ~/.helm/
 }
 
