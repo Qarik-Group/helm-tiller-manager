@@ -7,16 +7,19 @@ set -eu
 # * https://github.com/helm/helm/blob/master/docs/tiller_ssl.md
 # * https://github.com/helm/helm/blob/master/docs/securing_installation.md#best-practices-for-securing-helm-and-tiller
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd $DIR/..
+repo_root=$(dirname $(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd))
 
-export CERTS_YAML=${CERTS_YAML:-certs.yml}
+project_root=${HELM_MGR_PROJECT_ROOT:-${repo_root}}
+state=${HELM_MGR_STATE_ROOT:-${project_root}/state}
+cache=${state}/cache
+
 export HELM_HOME=${HELM_HOME:-$(helm home)}
 
-[[ "$(which bosh)X" == "X" ]] && {
-  echo "ERROR: please install 'bosh' CLI to generate certificates"
-  exit 1
-}
+mkdir -p ${state}
+mkdir -p ${cache}
+tmp=$(mktemp -d)
+trap "rm -fr ${tmp}" EXIT
+
 
 usage() {
     echo "Helm/Tiller Deployment Manager CLI"
@@ -25,28 +28,51 @@ usage() {
 }
 
 up() {
-  set -x
-  [[ -d ${HELM_HOME} ]] || {
+    echo "Creating certificates..."
+    [[ -f ${state}/ca.key.pem ]] || {
+        openssl genrsa -out ${state}/ca.key.pem 4096;
+    }
+    [[ -f ${state}/ca.cert.pem ]] || {
+        openssl req \
+            -key ${state}/ca.key.pem \
+            -out ${state}/ca.cert.pem -new -x509 -days 7300 -sha256 \
+            -subj "/O=tiller/CN=tiller"
+    }
+    [[ -f ${state}/tiller.key.pem ]] || {
+        openssl genrsa -out ${state}/tiller.key.pem 4096
+    }
+    [[ -f ${state}tiller.csr.pem ]] || {
+        openssl req \
+            -key ${state}/tiller.key.pem -new -sha256 \
+            -out ${state}/tiller.csr.pem \
+            -subj "/O=Tiller Server/CN=tiller-server"
+    }
+    [[ -f ${state}/tiller.cert.pem ]] || {
+        openssl x509 -req \
+            -CA ${state}/ca.cert.pem -CAkey ${state}/ca.key.pem -CAcreateserial \
+            -in ${state}/tiller.csr.pem \
+            -out ${state}/tiller.cert.pem -days 365
+    }
+
     echo "Installing helm into current Kuberenetes context..."
-    kubectl apply -f ./src/helm.yaml
+    kubectl apply -f ${project_root}/src/helm.yaml
 
     helm init \
         --service-account helm \
         --tiller-tls \
         --tiller-tls-verify \
-        --tls-ca-cert     <(int --path /tiller/tls/ca) \
-        --tiller-tls-cert <(int --path /tiller/tls/certificate) \
-        --tiller-tls-key  <(int --path /tiller/tls/private_key) \
+        --tls-ca-cert     ${state}/ca.cert.pem \
+        --tiller-tls-cert ${state}/tiller.cert.pem \
+        --tiller-tls-key  ${state}/tiller.key.pem \
         --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}'
-  }
 
-  echo "Storing certificates into ${HELM_HOME}..."
-  int --path /tiller/tls/ca          > "${HELM_HOME}/ca.pem"
-  int --path /tiller/tls/certificate > "${HELM_HOME}/cert.pem"
-  int --path /tiller/tls/private_key > "${HELM_HOME}/key.pem"
+    echo "Installing helm client certificates..."
+    cp ${state}/ca.cert.pem ${HELM_HOME}/ca.pem
+    cp ${state}/tiller.cert.pem ${HELM_HOME}/cert.pem
+    cp ${state}/tiller.key.pem ${HELM_HOME}/key.pem
 
-  echo "Testing connection"
-  # helm ls --tls
+    echo "When Tiller is ready, test connection and certificates:"
+    echo "  helm ls --tls && echo working"
 }
 
 down() {
@@ -59,10 +85,6 @@ down() {
   rm ./certs.yml
 }
 
-int() {
-  bosh int ./src/tiller-certs.yml --vars-store ${CERTS_YAML} "$@"
-}
-
 case "${1:-usage}" in
     up)
         shift
@@ -72,11 +94,6 @@ case "${1:-usage}" in
     down)
         shift
         down
-        ;;
-
-    int)
-        shift
-        int "$@"
         ;;
 
     *)
