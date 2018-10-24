@@ -80,12 +80,13 @@ up() {
     status=$(tiller_status)
     echo "  ${status}"
     while [[ "${status}" != "Running" ]]; do
+        sleep 1
         status=$(tiller_status)
         echo "  ${status}"
-        sleep 1
     done
     echo
     echo "Tiller is ready, testing connection and certificates:"
+    sleep 3 # pod running, but tiller not immediately ready for action?
     helm ls --tls && echo working
 }
 

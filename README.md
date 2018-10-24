@@ -12,14 +12,14 @@ helm-manager up
 The output might look like:
 
 ```output
-Creating certificates...
+Creating certificates, if missing...
 Generating RSA private key, 4096 bit long modulus
-.....................................................++
-..................................................++
+.................................................................................................................++
+....................................................................................................................++
 e is 65537 (0x10001)
 Generating RSA private key, 4096 bit long modulus
-......................++
-..............................................................++
+.............................................++
+............................................................++
 e is 65537 (0x10001)
 Signature ok
 subject=/O=Tiller Server/CN=tiller-server
@@ -42,8 +42,11 @@ $HELM_HOME has been configured at /Users/drnic/.helm.
 Tiller (the Helm server-side component) has been installed into your Kubernetes Cluster.
 Happy Helming!
 Installing helm client certificates...
-When Tiller is ready, test connection and certificates:
-  helm ls --tls && echo working
+Waiting for Tiller to start...
+  Running
+
+Tiller is ready, testing connection and certificates:
+working
 ```
 
 Confirm `helm` and Tiller server are working:
@@ -60,6 +63,16 @@ To tear down Tiller and local Helm files:
 ```console
 export PATH=$PATH:$PWD/bin
 helm-manager down
+```
+
+The output will look similar to:
+
+```output
+deployment.extensions "tiller-deploy" deleted
+service "tiller-deploy" deleted
+secret "tiller-secret" deleted
+serviceaccount "helm" deleted
+clusterrolebinding.rbac.authorization.k8s.io "helm" deleted
 ```
 
 To cleanup/regenerate the certificates:
