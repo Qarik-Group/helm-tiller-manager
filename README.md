@@ -49,13 +49,6 @@ Tiller is ready, testing connection and certificates:
 working
 ```
 
-Confirm `helm` and Tiller server are working:
-
-```console
-$ helm ls --tls && echo working
-working
-```
-
 ## Tear down
 
 To tear down Tiller and local Helm files:
