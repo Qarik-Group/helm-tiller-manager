@@ -52,15 +52,19 @@ up() {
             -subj "/O=Tiller Server/CN=tiller-server"
     }
     [[ -f ${state}/tiller.cert.pem ]] || {
+        echo subjectAltName=IP:127.0.0.1 > ${state}/extfile.cnf
         openssl x509 -req \
             -CA ${state}/ca.cert.pem -CAkey ${state}/ca.key.pem -CAcreateserial \
             -in ${state}/tiller.csr.pem \
-            -out ${state}/tiller.cert.pem -days 365
+            -out ${state}/tiller.cert.pem -days 365 \
+            -extfile ${state}/extfile.cnf
     }
 
     echo "Installing helm into current Kuberenetes context..."
     kubectl apply -f ${project_root}/src/helm.yaml
 
+    unset HELM_TLS
+    unset HELM_TLS_VERIFY
     helm init \
         --service-account helm \
         --tiller-tls \
@@ -68,26 +72,18 @@ up() {
         --tls-ca-cert     ${state}/ca.cert.pem \
         --tiller-tls-cert ${state}/tiller.cert.pem \
         --tiller-tls-key  ${state}/tiller.key.pem \
-        --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}'
+        --tiller-tls-hostname 127.0.0.1 \
+        --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}' \
+        --wait \
+        --upgrade
 
     echo "Installing helm client certificates..."
     cp ${state}/ca.cert.pem ${HELM_HOME}/ca.pem
     cp ${state}/tiller.cert.pem ${HELM_HOME}/cert.pem
     cp ${state}/tiller.key.pem ${HELM_HOME}/key.pem
 
-    echo "Waiting for Tiller to start..."
-    sleep 1
-    status=$(tiller_status)
-    echo "  ${status}"
-    while [[ "${status}" != "Running" ]]; do
-        sleep 1
-        status=$(tiller_status)
-        echo "  ${status}"
-    done
-    echo
     echo "Tiller is ready, testing connection and certificates:"
-    sleep 3 # pod running, but tiller not immediately ready for action?
-    helm ls --tls && echo working
+    helm ls --tls && echo "  working!"
 }
 
 down() {
