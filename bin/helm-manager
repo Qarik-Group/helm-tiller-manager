@@ -76,13 +76,16 @@ up() {
 }
 
 down() {
-  set +e
-  kubectl delete deployment tiller-deploy --namespace=kube-system
-  kubectl delete service tiller-deploy --namespace=kube-system
-  kubectl delete secret tiller-secret -n kube-system
-  kubectl delete -f ./src/helm.yaml
-  rm -rf ~/.helm/
-  rm ./certs.yml
+    set +e
+    kubectl delete deployment tiller-deploy --namespace=kube-system
+    kubectl delete service tiller-deploy --namespace=kube-system
+    kubectl delete secret tiller-secret -n kube-system
+    kubectl delete -f ./src/helm.yaml
+    rm -rf ~/.helm/
+}
+
+clean() {
+    rm -rf ${state}
 }
 
 case "${1:-usage}" in
@@ -94,6 +97,11 @@ case "${1:-usage}" in
     down)
         shift
         down
+        ;;
+
+    clean)
+        shift
+        clean
         ;;
 
     *)
