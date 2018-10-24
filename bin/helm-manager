@@ -27,8 +27,12 @@ usage() {
     echo "  down -- deletes to current Kubernetes context"
 }
 
+tiller_status() {
+    kubectl -n kube-system get pods -l app=helm -o jsonpath='{.items[*].status.phase}' | sort | uniq
+}
+
 up() {
-    echo "Creating certificates..."
+    echo "Creating certificates, if missing..."
     [[ -f ${state}/ca.key.pem ]] || {
         openssl genrsa -out ${state}/ca.key.pem 4096;
     }
@@ -71,8 +75,18 @@ up() {
     cp ${state}/tiller.cert.pem ${HELM_HOME}/cert.pem
     cp ${state}/tiller.key.pem ${HELM_HOME}/key.pem
 
-    echo "When Tiller is ready, test connection and certificates:"
-    echo "  helm ls --tls && echo working"
+    echo "Waiting for Tiller to start..."
+    sleep 1
+    status=$(tiller_status)
+    echo "  ${status}"
+    while [[ "${status}" != "Running" ]]; do
+        status=$(tiller_status)
+        echo "  ${status}"
+        sleep 1
+    done
+    echo
+    echo "Tiller is ready, testing connection and certificates:"
+    helm ls --tls && echo working
 }
 
 down() {
