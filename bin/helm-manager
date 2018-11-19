@@ -52,7 +52,7 @@ up() {
             -subj "/O=Tiller Server/CN=tiller-server"
     }
     [[ -f ${state}/tiller.cert.pem ]] || {
-        echo subjectAltName=IP:127.0.0.1 > ${state}/extfile.cnf
+        echo subjectAltName=IP:127.0.0.1,DNS:tiller-deploy.kube-system > ${state}/extfile.cnf
         openssl x509 -req \
             -CA ${state}/ca.cert.pem -CAkey ${state}/ca.key.pem -CAcreateserial \
             -in ${state}/tiller.csr.pem \
