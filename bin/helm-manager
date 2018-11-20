@@ -2,10 +2,14 @@
 
 set -eu
 
+# Uses minica to generate certs:
+# * https://github.com/jsha/minica
+
 # Inputs to this script come from:
 # * http://jayunit100.blogspot.com/2017/07/helm-on.html
 # * https://github.com/helm/helm/blob/master/docs/tiller_ssl.md
 # * https://github.com/helm/helm/blob/master/docs/securing_installation.md#best-practices-for-securing-helm-and-tiller
+# * https://letsencrypt.org/docs/certificates-for-localhost/#making-and-trusting-your-own-certificates
 
 repo_root=$(dirname $(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd))
 
@@ -34,30 +38,17 @@ tiller_status() {
 up() {
     echo "Creating certificates, if missing..."
     [[ -f ${state}/ca.key.pem ]] || {
-        openssl genrsa -out ${state}/ca.key.pem 4096;
-    }
-    [[ -f ${state}/ca.cert.pem ]] || {
-        openssl req \
-            -key ${state}/ca.key.pem \
-            -out ${state}/ca.cert.pem -new -x509 -days 7300 -sha256 \
-            -subj "/O=tiller/CN=tiller"
-    }
-    [[ -f ${state}/tiller.key.pem ]] || {
-        openssl genrsa -out ${state}/tiller.key.pem 4096
-    }
-    [[ -f ${state}tiller.csr.pem ]] || {
-        openssl req \
-            -key ${state}/tiller.key.pem -new -sha256 \
-            -out ${state}/tiller.csr.pem \
-            -subj "/O=Tiller Server/CN=tiller-server"
-    }
-    [[ -f ${state}/tiller.cert.pem ]] || {
-        echo subjectAltName=IP:127.0.0.1,DNS:tiller-deploy.kube-system > ${state}/extfile.cnf
-        openssl x509 -req \
-            -CA ${state}/ca.cert.pem -CAkey ${state}/ca.key.pem -CAcreateserial \
-            -in ${state}/tiller.csr.pem \
-            -out ${state}/tiller.cert.pem -days 365 \
-            -extfile ${state}/extfile.cnf
+        [[ "$(which minica)X" == "X" ]] && {
+            echo " - installing minica"
+            go get github.com/jsha/minica
+        }
+        pushd ${state}
+        minica \
+            -ca-cert ca.cert.pem \
+            -ca-key ca.key.pem \
+            -domains tiller-deploy.kube-system \
+            -ip-addresses 127.0.0.1
+        popd
     }
 
     echo "Installing helm into current Kuberenetes context..."
@@ -70,8 +61,8 @@ up() {
         --tiller-tls \
         --tiller-tls-verify \
         --tls-ca-cert     ${state}/ca.cert.pem \
-        --tiller-tls-cert ${state}/tiller.cert.pem \
-        --tiller-tls-key  ${state}/tiller.key.pem \
+        --tiller-tls-cert ${state}/tiller-deploy.kube-system/cert.pem \
+        --tiller-tls-key  ${state}/tiller-deploy.kube-system/key.pem \
         --tiller-tls-hostname 127.0.0.1 \
         --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}' \
         --wait \
@@ -79,8 +70,8 @@ up() {
 
     echo "Installing helm client certificates..."
     cp ${state}/ca.cert.pem ${HELM_HOME}/ca.pem
-    cp ${state}/tiller.cert.pem ${HELM_HOME}/cert.pem
-    cp ${state}/tiller.key.pem ${HELM_HOME}/key.pem
+    cp ${state}/tiller-deploy.kube-system/cert.pem ${HELM_HOME}/cert.pem
+    cp ${state}/tiller-deploy.kube-system/key.pem ${HELM_HOME}/key.pem
 
     echo "Tiller is ready, testing connection and certificates:"
     helm ls --tls && echo "  working!"
