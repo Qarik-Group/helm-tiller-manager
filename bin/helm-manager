@@ -36,23 +36,22 @@ tiller_status() {
 }
 
 up() {
-    echo "Creating certificates, if missing..."
-    [[ -f ${state}/ca.key.pem ]] || {
+    echo "Installing helm into current Kuberenetes context..."
+    kubectl apply -f ${project_root}/src/helm.yaml
+
+    pushd ${state}
+    echo "Creating certificates..."
+    [[ -f ./ca.key.pem ]] || {
         [[ "$(which minica)X" == "X" ]] && {
             echo " - installing minica"
             go get github.com/jsha/minica
         }
-        pushd ${state}
         minica \
             -ca-cert ca.cert.pem \
             -ca-key ca.key.pem \
             -domains tiller-deploy.kube-system \
             -ip-addresses 127.0.0.1
-        popd
     }
-
-    echo "Installing helm into current Kuberenetes context..."
-    kubectl apply -f ${project_root}/src/helm.yaml
 
     unset HELM_TLS
     unset HELM_TLS_VERIFY
@@ -60,20 +59,21 @@ up() {
         --service-account helm \
         --tiller-tls \
         --tiller-tls-verify \
-        --tls-ca-cert     ${state}/ca.cert.pem \
-        --tiller-tls-cert ${state}/tiller-deploy.kube-system/cert.pem \
-        --tiller-tls-key  ${state}/tiller-deploy.kube-system/key.pem \
+        --tls-ca-cert     ./ca.cert.pem \
+        --tiller-tls-cert ./tiller-deploy.kube-system/cert.pem \
+        --tiller-tls-key  ./tiller-deploy.kube-system/key.pem \
         --tiller-tls-hostname 127.0.0.1 \
         --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}' \
         --wait \
         --upgrade
 
     echo "Installing helm client certificates..."
-    cp ${state}/ca.cert.pem ${HELM_HOME}/ca.pem
-    cp ${state}/tiller-deploy.kube-system/cert.pem ${HELM_HOME}/cert.pem
-    cp ${state}/tiller-deploy.kube-system/key.pem ${HELM_HOME}/key.pem
+    cp ./ca.cert.pem ${HELM_HOME}/ca.pem
+    cp ./tiller-deploy.kube-system/cert.pem ${HELM_HOME}/cert.pem
+    cp ./tiller-deploy.kube-system/key.pem ${HELM_HOME}/key.pem
+    popd
 
-    echo "Tiller is ready, testing connection and certificates:"
+    echo "Tiller is ready, testing connection, and certificates:"
     helm ls --tls && echo "  working!"
 }
 
