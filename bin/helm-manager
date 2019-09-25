@@ -4,6 +4,7 @@ set -eu
 
 # Uses minica to generate certs:
 # * https://github.com/jsha/minica
+# * will be downloaded/installed for MacOS/Linux if missing from $PATH
 
 # Inputs to this script come from:
 # * http://jayunit100.blogspot.com/2017/07/helm-on.html
@@ -35,6 +36,30 @@ tiller_status() {
     kubectl -n kube-system get pods -l app=helm -o jsonpath='{.items[*].status.phase}' | sort | uniq
 }
 
+platform() {
+    if [ "$(uname)" == "Darwin" ]; then
+        echo "darwin"
+    elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+        echo "linux"
+    fi
+}
+
+_minica() {
+    local latest="https://github.com/starkandwayne/minica-binaries/releases/latest/download/minica-$(platform)-amd64"
+
+    if [[ "$(which minica)X" == "X" ]]; then
+      echo "installing latest minica cli into: ${repo_root}/bin/"
+      (
+        cd $(mktemp -d)
+        curl -s -L >minica "${latest}"
+        chmod +x minica
+        mv minica ${repo_root}/bin/
+      )
+    fi
+
+    minica "$@"
+}
+
 up() {
     echo "Installing helm into current Kuberenetes context..."
     kubectl apply -f ${project_root}/src/helm.yaml
@@ -42,11 +67,7 @@ up() {
     pushd ${state}
     echo "Creating certificates..."
     [[ -f ./ca.key.pem ]] || {
-        [[ "$(which minica)X" == "X" ]] && {
-            echo " - installing minica"
-            go get github.com/jsha/minica
-        }
-        minica \
+        _minica \
             -ca-cert ca.cert.pem \
             -ca-key ca.key.pem \
             -domains tiller-deploy.kube-system \
@@ -104,6 +125,11 @@ case "${1:-usage}" in
     clean)
         shift
         clean
+        ;;
+
+    minica)
+        shift
+        _minica "$@"
         ;;
 
     *)
