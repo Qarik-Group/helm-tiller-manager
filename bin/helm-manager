@@ -64,7 +64,8 @@ up() {
     echo "Installing helm into current Kuberenetes context..."
     kubectl apply -f ${project_root}/src/helm.yaml
 
-    pushd ${state}
+    (
+    cd ${state}
     echo "Creating certificates..."
     [[ -f ./ca.key.pem ]] || {
         _minica \
@@ -92,7 +93,7 @@ up() {
     cp ./ca.cert.pem ${HELM_HOME}/ca.pem
     cp ./tiller-deploy.kube-system/cert.pem ${HELM_HOME}/cert.pem
     cp ./tiller-deploy.kube-system/key.pem ${HELM_HOME}/key.pem
-    popd
+    )
 
     echo "Tiller is ready, testing connection, and certificates:"
     helm ls --tls && echo "  working!"
