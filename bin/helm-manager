@@ -66,8 +66,9 @@ up() {
 
     (
     cd ${state}
-    echo "Creating certificates..."
+    [[ -f ./ca.key.pem ]] && { echo "Reusing certificates."; }
     [[ -f ./ca.key.pem ]] || {
+        echo "Creating certificates..."
         _minica \
             -ca-cert ca.cert.pem \
             -ca-key ca.key.pem \
