@@ -61,6 +61,7 @@ _minica() {
 }
 
 up() {
+    [[ -f ${state}/ca.key.pem && $(helm ls --tls) ]] || {
     echo "Installing helm into current Kuberenetes context..."
     kubectl apply -f ${project_root}/src/helm.yaml
 
@@ -88,8 +89,14 @@ up() {
         --tiller-tls-hostname 127.0.0.1 \
         --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}' \
         --wait \
-        --upgrade
+        --upgrade \
+        ${DEBUG:+--debug} \
+        ${STABLE_REPO_URL:+--stable-repo-url $STABLE_REPO_URL}
+    )
+    }
 
+    (
+    cd ${state}
     echo "Installing helm client certificates..."
     cp ./ca.cert.pem ${HELM_HOME}/ca.pem
     cp ./tiller-deploy.kube-system/cert.pem ${HELM_HOME}/cert.pem
