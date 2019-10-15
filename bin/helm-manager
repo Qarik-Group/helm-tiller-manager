@@ -16,12 +16,12 @@ repo_root=$(dirname $(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd))
 
 project_root=${HELM_MGR_PROJECT_ROOT:-${repo_root}}
 state=${HELM_MGR_STATE_ROOT:-${project_root}/state}
-cache=${state}/cache
 
 export HELM_HOME=${HELM_HOME:-$(helm home)}
 
+export DEBUG=${DEBUG:-}
+
 mkdir -p ${state}
-mkdir -p ${cache}
 tmp=$(mktemp -d)
 trap "rm -fr ${tmp}" EXIT
 
