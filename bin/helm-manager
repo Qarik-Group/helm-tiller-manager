@@ -36,7 +36,7 @@ tiller_status() {
     kubectl -n kube-system get pods -l app=helm -o jsonpath='{.items[*].status.phase}' | sort | uniq
 }
 
-platform() {
+_platform() {
     if [ "$(uname)" == "Darwin" ]; then
         echo "darwin"
     elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
@@ -44,11 +44,26 @@ platform() {
     fi
 }
 
+_ensure_helm() {
+    version=$(grep "helm" .versions | cut -d= -f2)
+    platform=$(_platform)
+    [[ "$(command -v helm)X" == "X" || "$(helm version --client | grep "$version")X" == "X" ]] && {
+        echo "installing helm v${version} into ${repo_root}/bin/"
+        (
+        url="https://get.helm.sh/helm-v${version}-${platform}-amd64.tar.gz"
+        cd $(mktemp -d)
+        curl -sSL "$url" | tar -xvz "${platform}-amd64/helm"
+        chmod +x "${platform}-amd64/helm"
+        mv "${platform}-amd64/helm" "${repo_root}/bin/"
+        )
+    }
+}
+
 _minica() {
-    local latest="https://github.com/starkandwayne/minica-binaries/releases/latest/download/minica-$(platform)-amd64"
+    local latest="https://github.com/starkandwayne/minica-binaries/releases/latest/download/minica-$(_platform)-amd64"
 
     if [[ "$(which minica)X" == "X" ]]; then
-      echo "installing latest minica cli into: ${repo_root}/bin/"
+      echo "installing latest minica cli into ${repo_root}/bin/"
       (
         cd $(mktemp -d)
         curl -s -L >minica "${latest}"
@@ -61,6 +76,8 @@ _minica() {
 }
 
 up() {
+    _ensure_helm
+
     [[ -f ${state}/ca.key.pem && $(helm ls --tls) ]] || {
     echo "Installing helm into current Kuberenetes context..."
     kubectl apply -f ${project_root}/src/helm.yaml
@@ -79,7 +96,7 @@ up() {
 
     unset HELM_TLS
     unset HELM_TLS_VERIFY
-    helm init \
+    _helm init \
         --service-account helm \
         --tiller-tls \
         --tiller-tls-verify \
@@ -104,7 +121,7 @@ up() {
     )
 
     echo "Tiller is ready, testing connection, and certificates:"
-    helm ls --tls && echo "  working!"
+    _helm ls --tls && echo "  working!"
 }
 
 down() {
