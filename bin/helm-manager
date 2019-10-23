@@ -94,7 +94,7 @@ up() {
 
     unset HELM_TLS
     unset HELM_TLS_VERIFY
-    _helm init \
+    helm init \
         --service-account helm \
         --tiller-tls \
         --tiller-tls-verify \
@@ -119,7 +119,7 @@ up() {
     )
 
     echo "Tiller is ready, testing connection, and certificates:"
-    _helm ls --tls && echo "  working!"
+    helm ls --tls && echo "  working!"
 }
 
 down() {
