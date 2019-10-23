@@ -45,7 +45,7 @@ _platform() {
 }
 
 _ensure_helm() {
-    version=$(grep "helm" .versions | cut -d= -f2)
+    version=$(grep "helm" "$project_root/.versions" | cut -d= -f2)
     platform=$(_platform)
     [[ "$(command -v helm)X" == "X" || "$(helm version --client | grep "$version")X" == "X" ]] && {
         echo "installing helm v${version} into ${repo_root}/bin/"
