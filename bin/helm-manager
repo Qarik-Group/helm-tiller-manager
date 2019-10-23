@@ -54,6 +54,7 @@ _ensure_helm() {
         mv "${platform}-amd64/helm" "${repo_root}/bin/"
         )
     }
+    printf '' # ensure happy exit regardless of [[ test ]] block
 }
 
 _minica() {
