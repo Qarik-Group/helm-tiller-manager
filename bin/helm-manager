@@ -22,9 +22,6 @@ export HELM_HOME=${HELM_HOME:-$(helm home)}
 export DEBUG=${DEBUG:-}
 
 mkdir -p ${state}
-tmp=$(mktemp -d)
-trap "rm -fr ${tmp}" EXIT
-
 
 usage() {
     echo "Helm/Tiller Deployment Manager CLI"
