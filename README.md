@@ -1,5 +1,7 @@
 # Helm/Tiller Manager
 
+**DEPRECATED:** This project works with Helm v2 and has no place in the Helm universe with the introduction of Tiller-less Helm v3. I am currently still using Helm v2/Tiller at the time of writing, and will also try to help merge any PRs that appear. The `.versions` file for Helm CLI will always be a Helm v2 version.
+
 I found the multi-step instructions for deploying Tiller (the API server for Helm) were not going to be rememberable. Creating certificates, running the correct `helm init` command, etc. So this project includes a `helm-manager up` and `helm-manager down` command to do it all for us.
 
 To generate certificates and install Tiller into your current Kubernetes context:
