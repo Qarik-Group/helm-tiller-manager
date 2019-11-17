@@ -83,6 +83,14 @@ up() {
     (
     cd ${state}
     [[ -f ./ca.key.pem ]] && { echo "Reusing certificates."; }
+    [[ -f $HELM_HOME/ca.key.pem ]] && {
+        echo "Reusing $HELM_HOME certificates."
+        mkdir -p tiller-deploy.kube-system
+        cp ${HELM_HOME}/ca.pem     ./ca.cert.pem
+        cp ${HELM_HOME}/ca.key.pem ./ca.key.pem
+        cp ${HELM_HOME}/cert.pem   ./tiller-deploy.kube-system/cert.pem
+        cp ${HELM_HOME}/key.pem    ./tiller-deploy.kube-system/key.pem
+    }
     [[ -f ./ca.key.pem ]] || {
         echo "Creating certificates..."
         _minica \
@@ -114,6 +122,7 @@ up() {
     cd ${state}
     echo "Installing helm client certificates..."
     cp ./ca.cert.pem ${HELM_HOME}/ca.pem
+    cp ./ca.key.pem ${HELM_HOME}/ca.key.pem
     cp ./tiller-deploy.kube-system/cert.pem ${HELM_HOME}/cert.pem
     cp ./tiller-deploy.kube-system/key.pem ${HELM_HOME}/key.pem
     )
